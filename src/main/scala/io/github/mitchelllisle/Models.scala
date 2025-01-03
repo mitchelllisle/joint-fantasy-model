@@ -1,6 +1,5 @@
 package io.github.mitchelllisle
 
-import io.github.mitchelllisle.duckdb.DuckDBTable
 import io.circe.Decoder
 import io.circe.generic.decoding.DerivedDecoder
 import io.circe.generic.semiauto.deriveDecoder
@@ -138,7 +137,7 @@ final case class League(
                          trades: Option[String],
                          transaction_mode: Option[String],
                          variety: Option[String],
-                       ) extends AutoDeriveDecoder[League] with DuckDBTable
+                       ) extends AutoDeriveDecoder[League]
 
 final case class LeagueEntry(
                               entry_id: Option[Int],

@@ -1,20 +1,15 @@
 package io.github.mitchelllisle
 
 import io.github.mitchelllisle.fantasy.FantasyDraftAPI
-import java.sql.DriverManager
-import org.duckdb.DuckDBConnection
-
+import io.github.mitchelllisle.duckdb.DuckDB
 
 object Main {
-  val conn: DuckDBConnection = DriverManager.getConnection("jdbc:duckdb:").asInstanceOf[DuckDBConnection]
+  private val duckdb = new DuckDB("fantasy.db")
 
   def main(args: Array[String]): Unit = {
     val draft = new FantasyDraftAPI()
 
     val details = draft.getDetails
-
-    details.league.withConnection(conn).createTable.exportTable("league.csv")
-
     val teamStats = draft.getAllTeamStats
 
     val players = draft.getPlayers
