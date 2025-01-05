@@ -2,7 +2,6 @@ package io.github.mitchelllisle.fantasy
 
 import io.circe.Decoder
 import io.circe.parser.decode
-import io.github.mitchelllisle._
 import sttp.client3._
 
 
@@ -56,7 +55,7 @@ class FantasyDraftAPI(leagueId: Int = 8999) {
    * @param users List of users in the league
    * @return List of match results with calculated points
    */
-  def getMatchResults(details: LeagueDetails, users: List[User]): List[MatchResult] = {
+  def getMatchResults(details: LeagueDetails, users: List[LeagueEntry]): List[MatchResult] = {
     details.matches.filter(_.finished).flatMap { e =>
       val team1 = users.find(_.id == e.league_entry_1).get.player_first_name
       val team2 = users.find(_.id == e.league_entry_2).get.player_first_name
@@ -111,16 +110,6 @@ class FantasyDraftAPI(leagueId: Int = 8999) {
     }
   }
 
-  /** Gets list of all users in the league
-   *
-   * @return List of users
-   */
-  def getUsers: List[User] = {
-    val endpoint = s"league/$leagueId/details"
-    val response = makeRequest[LeagueDetailsResponse](endpoint)
-    response.league_entries
-  }
-
   /** Gets all players with team information attached
    *
    * @return List of players with team details
@@ -132,6 +121,7 @@ class FantasyDraftAPI(leagueId: Int = 8999) {
       val team = response.teams.find(_.id == e.team).get
       val teamColour = teamColours.find(_.id == e.team).get
       e.copy(
+        event = Some(response.events.current),
         name = Some(e.web_name),
         team_code = Some(team.code),
         team_name = Some(team.name),
@@ -175,7 +165,7 @@ class FantasyDraftAPI(leagueId: Int = 8999) {
    * @param players List of players to reference
    * @return List of picks with player and owner information
    */
-  def getAllPicks(users: List[User], gameweek: Int, players: List[Player]): List[Pick] = {
+  def getAllPicks(users: List[LeagueEntry], gameweek: Int, players: List[Player]): List[Pick] = {
     users.flatMap(u => getPicks(u, gameweek)).flatMap { p =>
       players.find(_.id == p.element).map(_.copy(owner = Some(p.user.get))).map(_ => p)
     }
@@ -187,7 +177,7 @@ class FantasyDraftAPI(leagueId: Int = 8999) {
    * @param gameweek Gameweek number
    * @return List of picks for the user
    */
-  private def getPicks(user: User, gameweek: Int): List[Pick] = {
+  private def getPicks(user: LeagueEntry, gameweek: Int): List[Pick] = {
     val endpoint = s"entry/${user.entry_id}/event/$gameweek"
     val response = makeRequest[PicksResponse](endpoint)
     response.picks.map(p => p.copy(user = Some(user.player_first_name)))
@@ -208,7 +198,7 @@ class FantasyDraftAPI(leagueId: Int = 8999) {
    * @param users List of users to attach to standings
    * @return List of standings with user details
    */
-  def getStandings(details: LeagueDetails, users: List[User]): List[StandingDetails] = {
+  def getStandings(details: LeagueDetails, users: List[LeagueEntry]): List[StandingDetails] = {
     details.standings.map { e =>
       val user = users.find(_.id == e.league_entry).getOrElse(throw new RuntimeException(s"user ${e.league_entry} not found"))
       StandingDetails(

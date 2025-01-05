@@ -1,4 +1,4 @@
-package io.github.mitchelllisle
+package io.github.mitchelllisle.fantasy
 
 import io.circe.Decoder
 import io.circe.generic.decoding.DerivedDecoder
@@ -13,6 +13,7 @@ object AutoDeriveDecoder {
 }
 
 final case class Player(
+                         event: Option[Int],
                          owner: Option[String],
                          added: String,
                          assists: Int,
@@ -186,10 +187,6 @@ final case class LeagueDetails(
 final case class Pick(element: Int, position: Int, is_captain: Boolean, is_vice_captain: Boolean, user: Option[String]) extends AutoDeriveDecoder[Pick]
 
 final case class PicksResponse(picks: List[Pick]) extends AutoDeriveDecoder[PicksResponse]
-
-final case class User(entry_id: Int, id: Int, entry_name: String, player_first_name: String) extends AutoDeriveDecoder[User]
-
-final case class LeagueDetailsResponse(league_entries: List[User]) extends AutoDeriveDecoder[LeagueDetailsResponse]
 
 final case class TeamColour(id: Int, secondId: Int, name: String, mainColor: String, secondaryColor: String)
 

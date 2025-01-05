@@ -1,6 +1,7 @@
 package io.github.mitchelllisle.duckdb
 
-import org.duckdb.DuckDBConnection
+import org.duckdb.{DuckDBAppender, DuckDBConnection}
+
 import scala.reflect.runtime.universe._
 import scala.reflect.runtime.currentMirror
 import scala.reflect.ClassTag
@@ -35,34 +36,35 @@ class DuckDB(path: String) {
   def createTable[T: TypeTag](): Unit = {
     val tpe = typeOf[T]
     val fields = ScalaToDuckDBTypeMapper.mapCaseClass(tpe)
-    val createStmt = s"CREATE TABLE ${tableName[T]} ($fields)"
+    val createStmt = s"CREATE TABLE IF NOT EXISTS ${tableName[T]} ($fields)"
     val stmt = connection.createStatement()
     stmt.execute(createStmt)
     stmt.close()
   }
 
-  def append[T: TypeTag: ClassTag](instances: List[T]): Unit = {
-    val tpe = typeOf[T]
-    val fields = tpe.decls.collect {
-      case m: MethodSymbol if m.isCaseAccessor => m.name.toString.trim
-    }.mkString(", ")
+  def append[T <: Product : TypeTag : ClassTag](instances: List[T]): Unit = {
+    val appender = new DuckDBAppender(connection, "main", tableName[T])
 
-    val stmt = connection.createStatement()
     instances.foreach { instance =>
-      val values = tpe.decls.collect {
-        case m: MethodSymbol if m.isCaseAccessor =>
-          val im = currentMirror.reflect(instance)
-          val fieldMirror = im.reflectField(m.asTerm)
-          fieldMirror.get match {
-            case Some(value) => s"'$value'"
-            case None => "NULL"
-            case value => s"'$value'"
-          }
-      }.mkString(", ")
-      val insertStmt = s"INSERT INTO ${tableName[T]} ($fields) VALUES ($values)"
-      stmt.execute(insertStmt)
+      appender.beginRow()
+      instance.productIterator.foreach {
+        case Some(value: Int) => appender.append(value)
+        case Some(value: Long) => appender.append(value)
+        case Some(value: Double) => appender.append(value)
+        case Some(value: Float) => appender.append(value)
+        case Some(value: String) => appender.append(value)
+        case Some(value: Boolean) => appender.append(value)
+        case value: Int => appender.append(value)
+        case value: Long => appender.append(value)
+        case value: Double => appender.append(value)
+        case value: Float => appender.append(value)
+        case value: String => appender.append(value)
+        case value: Boolean => appender.append(value)
+        case _ => throw new IllegalArgumentException("Unsupported type")
+      }
+      appender.endRow()
     }
-    stmt.close()
+    appender.close()
   }
 
   def read[T: TypeTag: ClassTag](): List[T] = {
@@ -92,7 +94,7 @@ class DuckDB(path: String) {
     result
   }
 
-  def export(path: String): Unit = {
+  def exportDatabase(path: String): Unit = {
     val stmt = connection.createStatement()
     stmt.execute(s"EXPORT DATABASE '$path'")
     stmt.close()
